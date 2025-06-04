@@ -1,22 +1,35 @@
 #include <iostream>
-#include "parser.cpp"
+#include <string>
 
-int main() {
-    // Create a Luna parser
-    Parser parser;
 
-    // Define a Luna script
-    std::string script = R"(
-        print("Hello, World!")
-        x = 5
-        y = 10
-        print(x + y)
-    )";
+// luna terminal
+class LunaTerminal {
+	public:
+	void run() {
+		std::string command;
+		std::cout << "Luna Terminal - Type 'exit' to quit." << std::endl;
+		while (true) {
+			std::cout << "> ";
+			std::getline(std::cin, command);
+			if (command == "exit") {
+				break;
+			}
+			processCommand(command);
+		}
+	}
 
-    // Parse and execute the Luna script
-    parser.parse(script);
-    parser.execute();
+private:
+	void processCommand(const std::string& command) {
+		if (command == "hello") {
+			std::cout << "Hello, Luna!" << std::endl;
+		}
+		else if (command == "help") {
+			std::cout << "Available commands: hello, help, exit" << std::endl;
+		} else if (command == "run") {
 
-    return 0;
-}
 
+		} else {
+			std::cout << "Unknown command: " << command << std::endl;
+		}
+	}
+};

@@ -11,9 +11,10 @@ enum TokenType {
     TOKEN_LITERAL,
     TOKEN_SYMBOL,
     TOKEN_EOF,
-	TOKEN_ERROR,
-	TOKEN_IMPORT,
-	TOKEN_STRING,
+    TOKEN_ERROR,
+    TOKEN_IMPORT,
+    TOKEN_STRING,
+    TOKEN_NUMBER, // Added for number literals
 };
 
 // Token structure
@@ -29,49 +30,34 @@ public:
 
     // Get the next token from the source code
     Token getNextToken() {
-        // Skip whitespace
-        while (pos_ < sourceCode_.size() && isspace(sourceCode_[pos_])) {
-            pos_++;
-        }
+        skipWhitespaceAndComments();
 
         // Check for end of file
         if (pos_ >= sourceCode_.size()) {
             return Token{ TOKEN_EOF, "" };
         }
 
-        // Check for keywords
-        if (isKeyword(sourceCode_.substr(pos_))) {
-            return Token{ TOKEN_KEYWORD, getKeyword(sourceCode_.substr(pos_)) };
+        char current = sourceCode_[pos_];
+
+        // String literal
+        if (current == '"' || current == '\'') {
+            return getStringLiteral();
         }
 
-        // Check for identifiers
-        if (isIdentifier(sourceCode_.substr(pos_))) {
-            return Token{ TOKEN_IDENTIFIER, getIdentifier(sourceCode_.substr(pos_)) };
+        // Number literal
+        if (isdigit(current)) {
+            return getNumberLiteral();
         }
 
-        // Check for literals
-        if (isLiteral(sourceCode_.substr(pos_))) {
-            return Token{ TOKEN_LITERAL, getLiteral(sourceCode_.substr(pos_)) };
+        // Identifier or keyword
+        if (isalpha(current) || current == '_') {
+            return getIdentifierOrKeyword();
         }
 
-        // Check for symbols
-        if (isSymbol(sourceCode_.substr(pos_))) {
-            return Token{ TOKEN_SYMBOL, getSymbol(sourceCode_.substr(pos_)) };
+        // Symbols and operators
+        if (isSymbolStart(current)) {
+            return getSymbol();
         }
-
-		// Check for import statements
-		if (isImport(sourceCode_.substr(pos_))) {
-			return Token{ TOKEN_IMPORT, getImport(sourceCode_.substr(pos_)) };
-		}
-
-		// Check for string literals
-		if (isString(sourceCode_.substr(pos_))) {
-			return Token{ TOKEN_STRING, getLiteral(sourceCode_.substr(pos_)) };
-		}
-
-		
-
-        
 
         // Error: unknown token
         std::cerr << "Error: unknown token at position " << pos_ << std::endl;
@@ -79,73 +65,124 @@ public:
     }
 
 private:
+    // Skip whitespace and comments
+    void skipWhitespaceAndComments() {
+        while (pos_ < sourceCode_.size()) {
+            char c = sourceCode_[pos_];
+            // Skip whitespace
+            if (isspace(c)) {
+                ++pos_;
+                continue;
+            }
+            // Single-line comment
+            if (c == '/' && pos_ + 1 < sourceCode_.size() && sourceCode_[pos_ + 1] == '/') {
+                pos_ += 2;
+                while (pos_ < sourceCode_.size() && sourceCode_[pos_] != '\n') ++pos_;
+                continue;
+            }
+            // Multi-line comment
+            if (c == '/' && pos_ + 1 < sourceCode_.size() && sourceCode_[pos_ + 1] == '*') {
+                pos_ += 2;
+                while (pos_ + 1 < sourceCode_.size() && !(sourceCode_[pos_] == '*' && sourceCode_[pos_ + 1] == '/')) ++pos_;
+                pos_ += 2; // skip */
+                continue;
+            }
+            break;
+        }
+    }
+
+    // String literal with escape support
+    Token getStringLiteral() {
+        char quote = sourceCode_[pos_];
+        size_t start = ++pos_;
+        std::string value;
+        bool closed = false;
+        while (pos_ < sourceCode_.size()) {
+            char c = sourceCode_[pos_];
+            if (c == '\\' && pos_ + 1 < sourceCode_.size()) {
+                char next = sourceCode_[pos_ + 1];
+                if (next == quote || next == '\\' || next == 'n' || next == 't') {
+                    if (next == 'n') value += '\n';
+                    else if (next == 't') value += '\t';
+                    else value += next;
+                    pos_ += 2;
+                    continue;
+                }
+            }
+            if (c == quote) {
+                closed = true;
+                ++pos_;
+                break;
+            }
+            value += c;
+            ++pos_;
+        }
+        if (!closed) {
+            std::cerr << "Error: Unterminated string literal\n";
+            exit(1);
+        }
+        return Token{ TOKEN_STRING, value };
+    }
+
+    // Number literal (integer or float)
+    Token getNumberLiteral() {
+        size_t start = pos_;
+        bool isFloat = false;
+        while (pos_ < sourceCode_.size() && (isdigit(sourceCode_[pos_]) || sourceCode_[pos_] == '.')) {
+            if (sourceCode_[pos_] == '.') {
+                if (isFloat) break; // only one dot allowed
+                isFloat = true;
+            }
+            ++pos_;
+        }
+        std::string value = sourceCode_.substr(start, pos_ - start);
+        return Token{ TOKEN_NUMBER, value };
+    }
+
+    // Identifier or keyword
+    Token getIdentifierOrKeyword() {
+        size_t start = pos_;
+        while (pos_ < sourceCode_.size() && (isalnum(sourceCode_[pos_]) || sourceCode_[pos_] == '_')) {
+            ++pos_;
+        }
+        std::string value = sourceCode_.substr(start, pos_ - start);
+        if (isKeyword(value)) {
+            if (value == "import") return Token{ TOKEN_IMPORT, value };
+            return Token{ TOKEN_KEYWORD, value };
+        }
+        return Token{ TOKEN_IDENTIFIER, value };
+    }
+
+    // Symbol recognition (multi-char and single-char)
+    Token getSymbol() {
+        static const std::vector<std::string> multiCharSymbols = {
+            "==", "!=", "<=", ">=", "&&", "||"
+        };
+        for (const auto& sym : multiCharSymbols) {
+            if (sourceCode_.substr(pos_, sym.size()) == sym) {
+                pos_ += sym.size();
+                return Token{ TOKEN_SYMBOL, sym };
+            }
+        }
+        char c = sourceCode_[pos_++];
+        return Token{ TOKEN_SYMBOL, std::string(1, c) };
+    }
+
+    bool isSymbolStart(char c) {
+        static const std::string symbols = "+-*/=<>!&|;:,.(){}[]";
+        return symbols.find(c) != std::string::npos;
+    }
+
     // Helper functions for checking token types
     bool isKeyword(const std::string& str) {
-        // Implement keyword checking logic here
-        
-        // For example:
-        return str == "if" || str == "while" || str == "func" || str == "return" || str == "end" || str == "true" || str == "false" || str == "null" || str == "print"  || str == "input" || str == "var" || str == "let" || str == "const" || str == "break" || str == "continue";
-    }
-
-    bool isImport(const std::string& str) {
-        // Implement import statement checking logic here
-        return str.substr(0, 6) == "import";
-	}
-
-	std::string getImport(const std::string& str) {
-		// Implement import statement extraction logic here
-		return str.substr(7);
-	}
-
-    bool isString(const std::string& str) {
-        // Implement string literal checking logic here
-        return str[0] == '"' || str[0] == '\'';
-	}
-
-    
-
-
-
-    std::string getKeyword(const std::string& str) {
-        // Implement keyword extraction logic here
-        // For example:
-        return str;
-    }
-
-    bool isIdentifier(const std::string& str) {
-        // Implement identifier checking logic here
-        // For example:
-        return str[0] == '_' || isalpha(str[0]);
-    }
-
-    std::string getIdentifier(const std::string& str) {
-        // Implement identifier extraction logic here
-        // For example:
-        return str;
-    }
-
-    bool isLiteral(const std::string& str) {
-        // Implement literal checking logic here
-        // For example:
-        return str[0] == '"' || str[0] == '\'';
-    }
-
-    std::string getLiteral(const std::string& str) {
-        // Implement literal extraction logic here
-        // For example:
-        return str.substr(1, str.size() - 2);
-    }
-
-    bool isSymbol(const std::string& str) {
-        // Implement symbol checking logic here
-        // For example:
-        return str == "+" || str == "-" || str == "*" || str == "/";
-    }
-
-    std::string getSymbol(const std::string& str) {
-        // Implement symbol extraction logic here
-        // For example:
-        return str;
+        static const std::vector<std::string> keywords = {
+            "if", "while", "func", "return", "end", "true", "false", "null",
+            "print", "input", "var", "let", "const", "break", "continue", "import", "export", "loop"
+        };
+        for (const auto& kw : keywords) {
+            if (str == kw) return true;
+        }
+        return false;
     }
 
     std::string sourceCode_;

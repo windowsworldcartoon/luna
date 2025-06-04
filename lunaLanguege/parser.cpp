@@ -51,16 +51,66 @@ public:
         else if (token.type == TOKEN_KEYWORD && (token.value == "true" || token.value == "false")) {
             boolStatement(token);
         }
-        else if (token.type == TOKEN_KEYWORD && token.value == "html") {
-            htmlStatement(token);
+        else if (token.type == TOKEN_KEYWORD && token.value == "export") {
+            exportStatement(token);
+        }
+        else if (token.type == TOKEN_KEYWORD && token.value == "let") {
+            letStatement(token);
+
+        }
+        else if (token.type == TOKEN_KEYWORD && token.value == "var") {
+            varStatement(token);
+        }
+        else if (token.type == TOKEN_KEYWORD && token.value == "break") {
+            breakStatement(token);
+        }
+        else if (token.type == TOKEN_KEYWORD && token.value == "loop") {
+            loopStatement(token);
+        }
+        else if (token.type == TOKEN_KEYWORD && token.value == "print") {
+            printstament(token);
+        }
+        else if (token.type == TOKEN_STRING) {
+            stringStatement(token);
+        }
+        else if (token.type == TOKEN_NUMBER) {
+            numberStatement(token);
         }
         else if (token.type == TOKEN_IDENTIFIER) {
-            callStatement(token);
+            callStatement(token); // Handle function calls or variable access
         }
         else {
             expressionStatement(token);
         }
     }
+
+	// letStatement -> "let" IDENTIFIER "=" Expression ";"
+	void letStatement(Token token) {
+		// Consume the "let" keyword
+		token = lexer_.getNextToken();
+
+		// Check for identifier
+		if (token.type != TOKEN_IDENTIFIER) {
+			error("Expected identifier");
+		}
+
+		// Get the identifier name
+		std::string identifier = token.value;
+
+		// Consume the "=" operator
+		token = lexer_.getNextToken();
+
+		// Parse the expression
+		expression(token);
+
+		// Consume the ";" terminator
+		token = lexer_.getNextToken();
+
+		// Check for syntax error
+		if (token.type != TOKEN_SYMBOL || token.value != ";") {
+			error("Expected ';' terminator");
+		}
+	}
 
     // IfStatement -> "if" Expression "then" Statement "end"
     void ifStatement(Token token) {
@@ -132,6 +182,27 @@ public:
         }
     }
 
+
+	// PrintStatement -> "print" Expression = () IDENTIFIER ";"
+    void printstament(Token token) {
+        // Consume the "print" keyword
+        token = lexer_.getNextToken();
+        // Expect an identifier or literal for printing
+        if (token.type != TOKEN_IDENTIFIER && token.type != TOKEN_LITERAL) {
+            error("Expected identifier or literal after 'print'");
+        }
+        // Print the value
+        std::cout << token.value << std::endl;
+        // Consume the ";" terminator
+        token = lexer_.getNextToken();
+        if (token.type != TOKEN_SYMBOL || token.value != ";") {
+            error("Expected ';' terminator after print statement");
+		}
+		
+        
+
+    }
+
     // ImportStatement -> "import" IDENTIFIER
     void importStatement(Token token) {
         // Consume the "import" keyword
@@ -151,6 +222,28 @@ public:
         }
     }
 
+	// VarStatement -> "var" IDENTIFIER "=" Expression ";"
+	void varStatement(Token token) {
+		// Consume the "var" keyword
+		token = lexer_.getNextToken();
+        // Expect an identifier for the variable name
+        if (token.type != TOKEN_IDENTIFIER) {
+            error("Expected variable name after 'var'");
+        }
+        // Get the variable name
+        std::string varName = token.value;
+        // Consume the "=" operator
+        token = lexer_.getNextToken();
+        // Parse the expression
+        expression(token);
+        // Consume the ";" terminator
+        token = lexer_.getNextToken();
+        // Check for syntax error
+        if (token.type != TOKEN_SYMBOL || token.value != ";") {
+            error("Expected ';' terminator after variable declaration");
+        }
+	}
+
     // ExpressionStatement -> Expression
     void expressionStatement(Token token) {
         // Parse the expression
@@ -160,10 +253,12 @@ public:
     // BoolStatement -> "true" | "false"
     void boolStatement(Token token) {
         if (token.type == TOKEN_KEYWORD && token.value == "true") {
-            std::cout << "True" << std::endl;
+            // set stuff to true
+
         }
         else if (token.type == TOKEN_KEYWORD && token.value == "false") {
-            std::cout << "False" << std::endl;
+			// set stuff to false
+            
         }
         else {
             error("Expected 'true' or 'false' keyword");
@@ -206,6 +301,30 @@ public:
         }
     }
 
+    // exportStatement -> "export" IDENTIFIER
+    void exportStatement(Token token) {
+        // Consume the "export" keyword
+        token = lexer_.getNextToken();
+
+		// Expect an identifier for the variable name
+		if (token.type != TOKEN_IDENTIFIER) {
+			error("Expected variable name after 'export'");
+		}
+
+		// Get the variable name
+		std::string varName = token.value;
+
+		std::cout << "Exporting variable: " << varName << std::endl;
+
+		// Consume the token
+		token = lexer_.getNextToken();
+
+		// Check for syntax error (optional, depending on your language design)
+		if (token.type != TOKEN_SYMBOL || token.value != ";") {
+			error("Expected ';' terminator");
+		}
+
+    }
     // CallStatement -> IDENTIFIER (arguments not implemented)
     void callStatement(Token token) {
         if (token.type == TOKEN_IDENTIFIER) {
@@ -219,20 +338,26 @@ public:
         }
     }
 
-    // Expression -> LITERAL | IDENTIFIER
-    void expression(Token token) {
-        if (token.type != TOKEN_LITERAL && token.type != TOKEN_IDENTIFIER) {
-            error("Expected expression");
-        }
+    // Handle a string literal statement
+    void stringStatement(Token token) {
+        // For demonstration, just print the string literal
+        std::cout << "String literal: \"" << token.value << "\"" << std::endl;
     }
 
-    // Add missing htmlStatement method
-    void htmlStatement(Token token) {
-        // Stub implementation for htmlStatement
-        std::cout << "HTML statement encountered: " << token.value << std::endl;
-        // Consume the html token
-        token = lexer_.getNextToken();
-        // Optionally parse HTML content (not implemented)
+    // Handle a number literal statement
+    void numberStatement(Token token) {
+        // For demonstration, just print the number literal
+        std::cout << "Number literal: " << token.value << std::endl;
+    }
+
+    // Expression -> LITERAL | IDENTIFIER | NUMBER | STRING
+    void expression(Token token) {
+        if (token.type != TOKEN_LITERAL &&
+            token.type != TOKEN_IDENTIFIER &&
+            token.type != TOKEN_NUMBER &&
+            token.type != TOKEN_STRING) {
+            error("Expected expression");
+        }
     }
 
     // Error handling function
